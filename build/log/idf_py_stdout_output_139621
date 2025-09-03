@@ -1,0 +1,28 @@
+Command: ninja menuconfi
+[0/1] Re-running CMake...
+-- Minimal build - ON
+-- git rev-parse returned 'fatal: not a git repository (or any parent up to mount point /)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).'
+-- Could not use 'git describe' to determine PROJECT_VER.
+-- Building ESP-IDF components for target esp32
+-- Project sdkconfig file /home/gabrields/Downloads/esp-idf-5.5.1/examples/mesh/internal_communication/sdkconfig
+Loading defaults file /home/gabrields/Downloads/esp-idf-5.5.1/examples/mesh/internal_communication/sdkconfig.defaults...
+/home/gabrields/Downloads/esp-idf-5.5.1/examples/mesh/internal_communication/sdkconfig:200 CONFIG_ESP32_SPIRAM_SUPPORT was replaced with CONFIG_SPIRAM 
+-- Compiler supported targets: xtensa-esp-elf
+-- USING O3
+-- App "internal_communication" version: 1
+-- Adding linker script /home/gabrields/Downloads/esp-idf-5.5.1/examples/mesh/internal_communication/build/esp-idf/esp_system/ld/memory.ld
+-- Adding linker script /home/gabrields/Downloads/esp-idf-5.5.1/examples/mesh/internal_communication/build/esp-idf/esp_system/ld/sections.ld.in
+-- Adding linker script /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_rom/esp32/ld/esp32.rom.ld
+-- Adding linker script /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_rom/esp32/ld/esp32.rom.api.ld
+-- Adding linker script /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_rom/esp32/ld/esp32.rom.libgcc.ld
+-- Adding linker script /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_rom/esp32/ld/esp32.rom.newlib-data.ld
+-- Adding linker script /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_rom/esp32/ld/esp32.rom.syscalls.ld
+-- Adding linker script /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_rom/esp32/ld/esp32.rom.libc-funcs.ld
+-- Adding linker script /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_rom/esp32/ld/esp32.rom.newlib-reent-funcs.ld
+-- Adding linker script /home/gabrields/ESP-IDF/v5.5/esp-idf/components/soc/esp32/ld/esp32.peripherals.ld
+-- Components: app_update bootloader bootloader_support cxx efuse esp_app_format esp_bootloader_format esp_coex esp_common esp_driver_gpio esp_driver_ledc esp_driver_uart esp_driver_usb_serial_jtag esp_event esp_hw_support esp_mm esp_netif esp_netif_stack esp_partition esp_phy esp_pm esp_ringbuf esp_rom esp_security esp_system esp_timer esp_vfs_console esp_wifi esptool_py freertos hal heap log lwip main mbedtls newlib nvs_flash partition_table pthread soc spi_flash vfs wpa_supplicant xtensa
+-- Component paths: /home/gabrields/ESP-IDF/v5.5/esp-idf/components/app_update /home/gabrields/ESP-IDF/v5.5/esp-idf/components/bootloader /home/gabrields/ESP-IDF/v5.5/esp-idf/components/bootloader_support /home/gabrields/ESP-IDF/v5.5/esp-idf/components/cxx /home/gabrields/ESP-IDF/v5.5/esp-idf/components/efuse /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_app_format /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_bootloader_format /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_coex /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_common /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_driver_gpio /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_driver_ledc /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_driver_uart /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_driver_usb_serial_jtag /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_event /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_hw_support /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_mm /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_netif /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_netif_stack /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_partition /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_phy /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_pm /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_ringbuf /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_rom /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_security /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_system /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_timer /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_vfs_console /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esp_wifi /home/gabrields/ESP-IDF/v5.5/esp-idf/components/esptool_py /home/gabrields/ESP-IDF/v5.5/esp-idf/components/freertos /home/gabrields/ESP-IDF/v5.5/esp-idf/components/hal /home/gabrields/ESP-IDF/v5.5/esp-idf/components/heap /home/gabrields/ESP-IDF/v5.5/esp-idf/components/log /home/gabrields/ESP-IDF/v5.5/esp-idf/components/lwip /home/gabrields/Downloads/esp-idf-5.5.1/examples/mesh/internal_communication/main /home/gabrields/ESP-IDF/v5.5/esp-idf/components/mbedtls /home/gabrields/ESP-IDF/v5.5/esp-idf/components/newlib /home/gabrields/ESP-IDF/v5.5/esp-idf/components/nvs_flash /home/gabrields/ESP-IDF/v5.5/esp-idf/components/partition_table /home/gabrields/ESP-IDF/v5.5/esp-idf/components/pthread /home/gabrields/ESP-IDF/v5.5/esp-idf/components/soc /home/gabrields/ESP-IDF/v5.5/esp-idf/components/spi_flash /home/gabrields/ESP-IDF/v5.5/esp-idf/components/vfs /home/gabrields/ESP-IDF/v5.5/esp-idf/components/wpa_supplicant /home/gabrields/ESP-IDF/v5.5/esp-idf/components/xtensa
+-- Configuring done (2.8s)
+-- Generating done (0.4s)
+-- Build files have been written to: /home/gabrields/Downloads/esp-idf-5.5.1/examples/mesh/internal_communication/build

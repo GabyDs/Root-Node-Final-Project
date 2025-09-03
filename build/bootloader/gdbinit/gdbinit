@@ -1,0 +1,2 @@
+source /home/gabrields/Downloads/esp-idf-5.5.1/examples/mesh/internal_communication/build/bootloader/gdbinit/symbols
+source /home/gabrields/Downloads/esp-idf-5.5.1/examples/mesh/internal_communication/build/bootloader/gdbinit/connect
