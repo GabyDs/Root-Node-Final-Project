@@ -55,7 +55,6 @@ size_info_*.txt
 pytest_embedded_log/
 
 # IDF Component Manager output
-dependencies.lock
 managed_components/
 
 # Binary files
