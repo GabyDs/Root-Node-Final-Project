@@ -1,4 +1,4 @@
-menu "Example Configuration"
+menu "Mesh Configuration"
 
     choice
         bool "Mesh Topology"

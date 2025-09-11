@@ -1,25 +1,18 @@
-/* Mesh Internal Communication Example
+/* INCLUDES */
 
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
 #include <string.h>
 #include <inttypes.h>
+#include "nvs_flash.h"
+#include "esp_log.h"
+#include "esp_event.h"
+
+/* MESH */
+
 #include "esp_wifi.h"
 #include "esp_mac.h"
-#include "esp_event.h"
-#include "esp_log.h"
 #include "esp_mesh.h"
 #include "esp_mesh_internal.h"
-#include "mesh_light.h"
-#include "nvs_flash.h"
 
-/*******************************************************
- *                Macros
- *******************************************************/
 
 /*******************************************************
  *                Constants
@@ -30,73 +23,86 @@
 /*******************************************************
  *                Variable Definitions
  *******************************************************/
+
+// LOGGING
 static const char *MESH_TAG = "mesh_main";
+
+// IDENTIFIER
 static const uint8_t MESH_ID[6] = { 0x77, 0x77, 0x77, 0x77, 0x77, 0x77};
+
+// DATA BUFFERS
 static uint8_t tx_buf[TX_SIZE] = { 0, };
 static uint8_t rx_buf[RX_SIZE] = { 0, };
+
+// STATE
 static bool is_running = true;
 static bool is_mesh_connected = false;
-static mesh_addr_t mesh_parent_addr;
+
+// MESH INFO
+static mesh_addr_t mesh_parent_addr; // MAC address of parent
+// Como es el root, no debería tener padre
+
 static int mesh_layer = -1;
-static esp_netif_t *netif_sta = NULL;
 
-mesh_light_ctl_t light_on = {
-    .cmd = MESH_CONTROL_CMD,
-    .on = 1,
-    .token_id = MESH_TOKEN_ID,
-    .token_value = MESH_TOKEN_VALUE,
-};
-
-mesh_light_ctl_t light_off = {
-    .cmd = MESH_CONTROL_CMD,
-    .on = 0,
-    .token_id = MESH_TOKEN_ID,
-    .token_value = MESH_TOKEN_VALUE,
-};
-
-/*******************************************************
- *                Function Declarations
- *******************************************************/
+static esp_netif_t *netif_sta = NULL; // saved station interface for further manipulation
 
 /*******************************************************
  *                Function Definitions
  *******************************************************/
 void esp_mesh_p2p_tx_main(void *arg)
 {
-    int i;
-    esp_err_t err;
-    int send_count = 0;
+    int i; // loop counter
+    esp_err_t err; // error tracker
+
+    int send_count = 0; // number of sent messages
+
+    // Stores addresses of nodes in the mesh network
     mesh_addr_t route_table[CONFIG_MESH_ROUTE_TABLE_SIZE];
+
+    // Number of active nodes in the mesh network
     int route_table_size = 0;
-    mesh_data_t data;
+
+    mesh_data_t data; // data structure for sending
+
     data.data = tx_buf;
     data.size = sizeof(tx_buf);
-    data.proto = MESH_PROTO_BIN;
-    data.tos = MESH_TOS_P2P;
+
+    data.proto = MESH_PROTO_BIN; // binary protocol
+    data.tos = MESH_TOS_P2P; // point-to-point
+    // Esto hay que checarlo bien
+
     is_running = true;
 
     while (is_running) {
+
         /* non-root do nothing but print */
         if (!esp_mesh_is_root()) {
+            // Monitor mesh status every 10 seconds
             ESP_LOGI(MESH_TAG, "layer:%d, rtableSize:%d, %s", mesh_layer,
                      esp_mesh_get_routing_table_size(),
                      is_mesh_connected ? "NODE" : "DISCONNECT");
             vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
             continue;
         }
-        esp_mesh_get_routing_table((mesh_addr_t *) &route_table,
+
+        // Esto ejecuta solo si es root sino salta
+
+        esp_mesh_get_routing_table((mesh_addr_t *) &route_table, // llena el array con las direcciones
                                    CONFIG_MESH_ROUTE_TABLE_SIZE * 6, &route_table_size);
+        
         if (send_count && !(send_count % 100)) {
             ESP_LOGI(MESH_TAG, "size:%d/%d,send_count:%d", route_table_size,
                      esp_mesh_get_routing_table_size(), send_count);
         }
-        send_count++;
 
         /* Add "Hello Mesh" message to tx_buf */
+        send_count++;
         snprintf((char *)tx_buf, sizeof(tx_buf), "Hello Mesh %d", send_count);
 
         for (i = 0; i < route_table_size; i++) {
+            // Send data to each node in the routing table
             err = esp_mesh_send(&route_table[i], &data, MESH_DATA_P2P, NULL, 0);
+            
             if (err) {
                 ESP_LOGE(MESH_TAG,
                          "[ROOT-2-UNICAST:%d][L:%d]parent:"MACSTR" to "MACSTR", heap:%" PRId32 "[err:0x%x, proto:%d, tos:%d]",
@@ -113,6 +119,7 @@ void esp_mesh_p2p_tx_main(void *arg)
                          err, data.proto, data.tos);
             }
         }
+
         /* if route_table_size is less than 10, add delay to avoid watchdog in this task. */
         if (route_table_size < 10) {
             vTaskDelay(1 * 1000 / portTICK_PERIOD_MS);
@@ -123,31 +130,46 @@ void esp_mesh_p2p_tx_main(void *arg)
 
 void esp_mesh_p2p_rx_main(void *arg)
 {
-    int recv_count = 0;
-    esp_err_t err;
-    mesh_addr_t from;
+    int recv_count = 0; // number of received messages
+
+    // used for reply messages
     int send_count = 0;
-    mesh_data_t data;
-    int flag = 0;
+
+    int flag = 0; // indicates the reception modes
+
+    esp_err_t err;
+
+    mesh_addr_t from; // address of sender
+    
+    mesh_data_t data; // data structure for receiving
     data.data = rx_buf;
     data.size = RX_SIZE;
+
     is_running = true;
 
     while (is_running) {
-        data.size = RX_SIZE;
+
+        data.size = RX_SIZE; // reset data size before each receiving
+
+        // portMAX_DELAY indicates to wait indefinitely until a packet is received
         err = esp_mesh_recv(&from, &data, portMAX_DELAY, &flag, NULL, 0);
+        
         if (err != ESP_OK || !data.size) {
             ESP_LOGE(MESH_TAG, "err:0x%x, size:%d", err, data.size);
             continue;
         }
+
+        ESP_LOGI(MESH_TAG, "Receive Message: %s", (char *)data.data);
+
         /* extract send count */
         if (data.size >= sizeof(send_count)) {
             send_count = (data.data[25] << 24) | (data.data[24] << 16)
                          | (data.data[23] << 8) | data.data[22];
         }
+        // Acá tenemos que modificar el procesamiento del mensaje recibido
+        
         recv_count++;
-        /* process light control */
-        mesh_light_process(&from, data.data, data.size);
+        
         if (!(recv_count % 1)) {
             ESP_LOGW(MESH_TAG,
                      "[#RX:%d/%d][L:%d] parent:"MACSTR", receive from "MACSTR", size:%d, heap:%" PRId32 ", flag:%d[err:0x%x, proto:%d, tos:%d]",
@@ -162,12 +184,15 @@ void esp_mesh_p2p_rx_main(void *arg)
 
 esp_err_t esp_mesh_comm_p2p_start(void)
 {
+    // Start P2P communication tasks only once
     static bool is_comm_p2p_started = false;
+
     if (!is_comm_p2p_started) {
         is_comm_p2p_started = true;
-        xTaskCreate(esp_mesh_p2p_tx_main, "MPTX", 3072, NULL, 5, NULL);
+        // xTaskCreate(esp_mesh_p2p_tx_main, "MPTX", 3072, NULL, 5, NULL);
         xTaskCreate(esp_mesh_p2p_rx_main, "MPRX", 3072, NULL, 5, NULL);
     }
+
     return ESP_OK;
 }
 
@@ -205,6 +230,7 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base,
                  MAC2STR(child_disconnected->mac));
     }
     break;
+
     case MESH_EVENT_ROUTING_TABLE_ADD: {
         mesh_event_routing_table_change_t *routing_table = (mesh_event_routing_table_change_t *)event_data;
         ESP_LOGW(MESH_TAG, "<MESH_EVENT_ROUTING_TABLE_ADD>add %d, new:%d, layer:%d",
@@ -226,23 +252,32 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base,
     }
     /* TODO handler for the failure */
     break;
+
+    /* When a parent connection is established, 
+    the handler updates the local mesh layer, 
+    stores the parent's BSSID */
     case MESH_EVENT_PARENT_CONNECTED: {
         mesh_event_connected_t *connected = (mesh_event_connected_t *)event_data;
         esp_mesh_get_id(&id);
         mesh_layer = connected->self_layer;
         memcpy(&mesh_parent_addr.addr, connected->connected.bssid, 6);
+        
         ESP_LOGI(MESH_TAG,
                  "<MESH_EVENT_PARENT_CONNECTED>layer:%d-->%d, parent:"MACSTR"%s, ID:"MACSTR", duty:%d",
                  last_layer, mesh_layer, MAC2STR(mesh_parent_addr.addr),
                  esp_mesh_is_root() ? "<ROOT>" :
                  (mesh_layer == 2) ? "<layer2>" : "", MAC2STR(id.addr), connected->duty);
+
         last_layer = mesh_layer;
-        mesh_connected_indicator(mesh_layer);
         is_mesh_connected = true;
+
+        // If this node is the root, restart DHCP client on station interface to get IP address
         if (esp_mesh_is_root()) {
             esp_netif_dhcpc_stop(netif_sta);
             esp_netif_dhcpc_start(netif_sta);
         }
+
+        // Initiate P2P communication tasks once connected to the mesh
         esp_mesh_comm_p2p_start();
     }
     break;
@@ -252,10 +287,10 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base,
                  "<MESH_EVENT_PARENT_DISCONNECTED>reason:%d",
                  disconnected->reason);
         is_mesh_connected = false;
-        mesh_disconnected_indicator();
         mesh_layer = esp_mesh_get_layer();
     }
     break;
+
     case MESH_EVENT_LAYER_CHANGE: {
         mesh_event_layer_change_t *layer_change = (mesh_event_layer_change_t *)event_data;
         mesh_layer = layer_change->new_layer;
@@ -264,7 +299,6 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base,
                  esp_mesh_is_root() ? "<ROOT>" :
                  (mesh_layer == 2) ? "<layer2>" : "");
         last_layer = mesh_layer;
-        mesh_connected_indicator(mesh_layer);
     }
     break;
     case MESH_EVENT_ROOT_ADDRESS: {
@@ -273,6 +307,8 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base,
                  MAC2STR(root_addr->addr));
     }
     break;
+
+    // Voting events - not relevant for fixed root node
     case MESH_EVENT_VOTE_STARTED: {
         mesh_event_vote_started_t *vote_started = (mesh_event_vote_started_t *)event_data;
         ESP_LOGI(MESH_TAG,
@@ -282,10 +318,13 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base,
                  MAC2STR(vote_started->rc_addr.addr));
     }
     break;
+
     case MESH_EVENT_VOTE_STOPPED: {
         ESP_LOGI(MESH_TAG, "<MESH_EVENT_VOTE_STOPPED>");
         break;
     }
+
+    // Root switch events - not relevant for fixed root node
     case MESH_EVENT_ROOT_SWITCH_REQ: {
         mesh_event_root_switch_req_t *switch_req = (mesh_event_root_switch_req_t *)event_data;
         ESP_LOGI(MESH_TAG,
@@ -301,6 +340,7 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base,
         ESP_LOGI(MESH_TAG, "<MESH_EVENT_ROOT_SWITCH_ACK>layer:%d, parent:"MACSTR"", mesh_layer, MAC2STR(mesh_parent_addr.addr));
     }
     break;
+
     case MESH_EVENT_TODS_STATE: {
         mesh_event_toDS_state_t *toDs_state = (mesh_event_toDS_state_t *)event_data;
         ESP_LOGI(MESH_TAG, "<MESH_EVENT_TODS_REACHABLE>state:%d", *toDs_state);
@@ -375,35 +415,48 @@ void ip_event_handler(void *arg, esp_event_base_t event_base,
                       int32_t event_id, void *event_data)
 {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
+
     ESP_LOGI(MESH_TAG, "<IP_EVENT_STA_GOT_IP>IP:" IPSTR, IP2STR(&event->ip_info.ip));
 
 }
 
 void app_main(void)
 {
-    ESP_ERROR_CHECK(mesh_light_init());
-    ESP_ERROR_CHECK(nvs_flash_init());
+
+    ESP_ERROR_CHECK(nvs_flash_init()); // Non-Volatile Storage (NVS) flash partition
+
     /*  tcpip initialization */
     ESP_ERROR_CHECK(esp_netif_init());
+
     /*  event initialization */
     ESP_ERROR_CHECK(esp_event_loop_create_default());
+
     /*  create network interfaces for mesh (only station instance saved for further manipulation, soft AP instance ignored */
     ESP_ERROR_CHECK(esp_netif_create_default_wifi_mesh_netifs(&netif_sta, NULL));
+    
     /*  wifi initialization */
     wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&config));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &ip_event_handler, NULL));
+    
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_FLASH));
     ESP_ERROR_CHECK(esp_wifi_start());
+
     /*  mesh initialization */
     ESP_ERROR_CHECK(esp_mesh_init());
     ESP_ERROR_CHECK(esp_event_handler_register(MESH_EVENT, ESP_EVENT_ANY_ID, &mesh_event_handler, NULL));
+    
+    
     /*  set mesh topology */
     ESP_ERROR_CHECK(esp_mesh_set_topology(CONFIG_MESH_TOPOLOGY));
+    
     /*  set mesh max layer according to the topology */
     ESP_ERROR_CHECK(esp_mesh_set_max_layer(CONFIG_MESH_MAX_LAYER));
+
+    // 1 -> 100% ensuring democratic root election 
     ESP_ERROR_CHECK(esp_mesh_set_vote_percentage(1));
+    
     ESP_ERROR_CHECK(esp_mesh_set_xon_qsize(128));
+
 #ifdef CONFIG_MESH_ENABLE_PS
     /* Enable mesh PS function */
     ESP_ERROR_CHECK(esp_mesh_enable_ps());
@@ -416,36 +469,52 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_mesh_disable_ps());
     ESP_ERROR_CHECK(esp_mesh_set_ap_assoc_expire(10));
 #endif
+
+    /* mesh configuration */
     mesh_cfg_t cfg = MESH_INIT_CONFIG_DEFAULT();
+
     /* mesh ID */
     memcpy((uint8_t *) &cfg.mesh_id, MESH_ID, 6);
+
     /* router */
     cfg.channel = CONFIG_MESH_CHANNEL;
     cfg.router.ssid_len = strlen(CONFIG_MESH_ROUTER_SSID);
+
     memcpy((uint8_t *) &cfg.router.ssid, CONFIG_MESH_ROUTER_SSID, cfg.router.ssid_len);
     memcpy((uint8_t *) &cfg.router.password, CONFIG_MESH_ROUTER_PASSWD,
            strlen(CONFIG_MESH_ROUTER_PASSWD));
+
     /* mesh softAP */
     ESP_ERROR_CHECK(esp_mesh_set_ap_authmode(CONFIG_MESH_AP_AUTHMODE));
+
     cfg.mesh_ap.max_connection = CONFIG_MESH_AP_CONNECTIONS;
     cfg.mesh_ap.nonmesh_max_connection = CONFIG_MESH_NON_MESH_AP_CONNECTIONS;
+    
     memcpy((uint8_t *) &cfg.mesh_ap.password, CONFIG_MESH_AP_PASSWD,
            strlen(CONFIG_MESH_AP_PASSWD));
+    
     ESP_ERROR_CHECK(esp_mesh_set_config(&cfg));
+
     /* Disable self-organization and manually set this node as root */
     ESP_ERROR_CHECK(esp_mesh_set_self_organized(false, false));
     
     /* Create parent configuration for root node - should match router config */
     wifi_config_t parent_config = {0};
+
     strcpy((char*)parent_config.sta.ssid, CONFIG_MESH_ROUTER_SSID);
     strcpy((char*)parent_config.sta.password, CONFIG_MESH_ROUTER_PASSWD);
     parent_config.sta.channel = CONFIG_MESH_CHANNEL;
+    // Esto hay que evaluar bien
     
     /* Set this node as root by designating it as MESH_ROOT type with MESH_ROOT_LAYER */
     ESP_ERROR_CHECK(esp_mesh_fix_root(true));
+
+    // La config del padre debe coincidir con la del router
     ESP_ERROR_CHECK(esp_mesh_set_parent(&parent_config, NULL, MESH_ROOT, MESH_ROOT_LAYER));
+    
     /* mesh start */
     ESP_ERROR_CHECK(esp_mesh_start());
+
 #ifdef CONFIG_MESH_ENABLE_PS
     /* set the device active duty cycle. (default:10, MESH_PS_DEVICE_DUTY_REQUEST) */
     ESP_ERROR_CHECK(esp_mesh_set_active_duty_cycle(CONFIG_MESH_PS_DEV_DUTY, CONFIG_MESH_PS_DEV_DUTY_TYPE));
